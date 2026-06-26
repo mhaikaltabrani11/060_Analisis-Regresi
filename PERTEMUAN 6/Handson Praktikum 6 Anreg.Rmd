@@ -1,0 +1,387 @@
+---
+title: "Handson Praktikum 6 Anreg"
+author: "M. Haikal Tabrani"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::readthedown
+---
+
+# Library
+
+```{r, warning = FALSE, message = FALSE}
+library(readxl) # untuk membaca data
+library(GGally) # untuk menghasilkan matriks hubungan antarpeubah
+library(corrplot) # untuk menghasilkan matriks korelasi
+library(dplyr) # untuk manipulasi data
+library(car) # untuk memeriksa multikolinearitas
+library(stargazer) # untuk menampilkan hasil perbandingan regresi
+library(lmtest) # untuk uji kehomogenan ragam sisaan dan saling bebas
+library(olsrr) # untuk pemeriksaan amatan tidak biasa
+```
+
+Data
+
+```{r}
+dt <- read.csv2("C:\\Users\\a c e r\\OneDrive\\SEMESTER 4\\ANALISIS REGRESI\\DATA ANREG PRAK\\DATA USING FOR R.csv")
+dt # menampilkan data
+```
+
+```{r}
+str(dt) # menampilkan tipe data setiap peubah
+```
+
+```{r}
+summary(dt) # menampilkan ringkasan data
+```
+
+
+Untuk mempermudah dalam komputasi, karena peubah ticker tidak digunakan, maka dapat dihapus. Pada praktikum kali ini akan dilakukan dua pemodelan, yakni model dengan seluruh peubah kuantitatif dan model dengan adanya peubah kualitatif, supaya lebih mudah dalam analisisnya maka akan dibentuk dua data berbeda.
+
+```{r}
+dt <- select(dt, -Ticker)
+```
+
+# Eksplorasi Data
+
+## Peubah Respon
+
+```{r}
+hist(dt$NPM_Y, main = "Sebaran Net Profit Margin")
+```
+
+```{r}
+boxplot(dt$NPM_Y, main = "Sebaran NPM")
+```
+
+## Peubah Pennjelas vs Peubah Respon
+
+### GPM
+
+```{r}
+plot(dt$NPM_Y, dt$GPM_X1)
+```
+
+Hubungan antara NPM dan GPM cenderung positif.
+
+### OPM
+
+```{r}
+plot(dt$NPM_Y, dt$OPM_X2)
+```
+
+Hubungan antara NPM dan OPM cenderung positif.
+
+### ROA
+
+```{r}
+plot(dt$NPM_Y, dt$ROA_X5)
+```
+
+Hubungan antara NPM dan ROA cenderung positif.
+
+### ROE
+
+```{r}
+plot(dt$NPM_Y, dt$ROE_X6)
+```
+
+Hubungan antara NPM dan ROE cenderung positif.
+
+# CurrRatio
+
+```{r}
+plot(dt$NPM_Y, dt$CurrRatio_X7)
+```
+
+Hubungan antara NPM dan CurrRatio cenderung acak relatif tidak berhubungan. 
+
+## Korelasi
+
+```{r}
+ggpairs(dt,
+        upper = list(continuous = wrap('cor', size = 3)),
+        title = "Matriks Scatterplot Data")
+```
+
+Diagonal Utama: Menampilkan kurva estimasi kepadatan (density plot) dari masing-masing variabel untuk melihat bentuk distribusinya. Sebagian besar variabel tampak memiliki kemiringan (skewed), tidak murni normal.
+
+Kiri-Bawah Diagonal: Menampilkan scatterplot (sebaran titik data) antar pasangan variabel untuk melihat pola linearitas atau keberadaan outlier.
+
+Kanan-Atas Diagonal: Menampilkan nilai koefisien korelasi Pearson beserta tingkat signifikansinya yang ditandai dengan bintang (*** untuk $p < 0.001$,  untuk $p < 0.01$, dan * untuk $p < 0.05$).
+
+
+```{r}
+cor_matrix <- cor(dt, use = "complete.obs")
+
+corrplot(cor_matrix, method = "color", type = "lower",
+         col = colorRampPalette(c("red", "white", "blue"))(200),
+         addCoef.col = "black", tl.col = "black", tl.srt = 35)
+```
+Visualisasi kekuatan korelasi menggunakan gradasi warna. Warna biru tua menunjukkan korelasi positif yang kuat ($1$), warna merah menunjukkan korelasi negatif (hingga $-1$), dan warna putih/pudar menandakan korelasi mendekati nol (tidak ada hubungan).
+
+
+# Interpretasi Hubungan
+
+- OPM_X2 (Operating Profit Margin): Memiliki korelasi positif paling kuat dan sangat signifikan sebesar 0,64 (***). Pada scatterplot, terlihat jelas titik-titik data membentuk pola linear naik. Artinya, kenaikan margin laba operasional berbanding lurus secara signifikan dengan kenaikan margin laba bersih.
+
+- GPM_X1 (Gross Profit Margin): Memiliki korelasi positif yang kuat dan sangat signifikan sebesar 0,61 (***). Ini menunjukkan bahwa efisiensi pada biaya produksi awal berkontribusi besar pada hasil akhir laba bersih.
+
+- ROE_X6 (Return on Equity): Memiliki korelasi positif moderat yang signifikan sebesar 0,32 (***).
+
+- CurrRatio_X7 (Current Ratio): Memiliki korelasi positif moderat yang signifikan sebesar 0,31 (***). Kemampuan likuiditas jangka pendek perusahaan berhubungan positif dengan profitabilitas margin bersihnya.
+
+- ROA_X5 (Return on Asset): Memiliki korelasi positif lemah namun tetap signifikan sebesar 0,23 ().
+
+- DER_X13 (Debt to Equity Ratio): Memiliki korelasi negatif yang lemah namun signifikan sebesar -0,19 (*). Warna merah muda pada korelogram mengonfirmasi hubungan terbalik ini. Artinya, semakin tinggi rasio utang terhadap ekuitas, ada kecenderungan margin laba bersih perusahaan sedikit menurun.
+
+
+# Pemodelan
+
+```{r}
+model1 = lm(formula = NPM_Y ~ ., data = dt)
+summary(model1)
+```
+
+
+Persamaan yang terbentuk adalah
+$$\hat{NPM}=-0.0201755+0.2030813GPM+0.337446OPM-1.1805581ROA+0.6628448ROE+0.0104320CurrRatio+-0.0005041DERR$$
+
+- Variabel yang memberikan dampak positif terbesar terhadap peningkatan $NPM$ dalam model ini adalah $ROE$ ($+0.6628$) dan $OPM$ ($+0.3374$).
+
+- Variabel $ROA$ menunjukkan anomali karena memiliki pengaruh negatif yang sangat kuat ($-1.1805$). Jika Anda sedang menyusun skripsi/penelitian, disarankan untuk mengecek uji Multikolinieritas (VIF), karena $ROA$, $ROE$, $GPM$, dan $OPM$ sering kali saling memengaruhi secara kuat.
+
+
+# Pemeriksaan Multikolinearitas
+
+## Perubahan Peubah
+
+```{r}
+mod1 <- lm(NPM_Y ~ ., dt[1:2])
+mod2 <- lm(NPM_Y ~ ., dt[1:3])
+mod3 <- lm(NPM_Y ~ ., dt[1:4])
+mod4 <- lm(NPM_Y ~ ., dt[1:5])
+mod5 <- lm(NPM_Y ~ ., dt)
+
+stargazer(mod1, mod2, mod3, mod4, mod5,
+          type = "text", single.row = TRUE)
+
+```
+
+
+## Perubahan Banyak Data
+
+```{r}
+mod5_1 <- lm(NPM_Y ~ ., dt[1:15,])
+stargazer(summary(mod5)$coefficients, summary(mod5_1)$coefficients,
+          type = "text",
+          font.size = "small")
+```
+
+Terdapat dugaan parameter yang mengalami perubahan besar ketika jumlah amatan berbeda, mengindikasi model bermasalah.
+
+## Akar Ciri
+
+```{r}
+x <- dt[-1]
+r <- cor(x)
+(ev <- eigen(r)$values)
+```
+
+```{r}
+# Simultan
+if ((max(ev) / min(ev)) <= 100) {
+  cat("Tidak ada multikolinearitas\n")
+} else if ((max(ev) / min(ev)) > 100 & (max(ev) / min(ev)) <= 1000) {
+  cat("Ada multikolinearitas yang lemah\n")
+} else {
+  cat("Ada multikolinearitas yang kuat\n")
+}
+```
+
+```{r}
+# Parsial
+if (all((max(ev) / ev) <= 1000)) {
+  cat("Tidak ada multikolinearitas\n")
+} else {
+  cat("Ada multikolinearitas pada peubah penjelas ke:", which((max(ev) / ev) > 1000), "\n")
+}
+```
+
+## Nilai VIF
+
+```{r}
+vif(model1)
+```
+
+Hasil pemeriksaan dengan akar ciri menyatakan tidak ada multikolinearitas pada model karena tidak ada nilai $k>100$ secara simultan. Nilai VIF juga menunjukkan tidak ada peubah yang VIF nya lebih dari 10.
+
+
+
+
+
+# Pengujian Asumsi
+
+## Eksplorasi Grafik
+
+### Plot Sisaan vs Y duga
+
+```{r}
+plot(model1,1) 
+```
+
+- Kondisi Ideal: Garis merah (kurva smoothing LOESS) seharusnya membentuk garis lurus horizontal yang berada tepat atau sangat dekat dengan garis putus-putus abu-abu di angka 0.
+
+- Kondisi Plot Anda: Garis merah terlihat relatif mendatar di sepanjang pusat data, meskipun ada sedikit kelengkungan halus di ujung kiri dan kanan.
+
+- Kesimpulan: Asumsi linearitas terpenuhi secara umum. Hubungan antara variabel independen dan dependen masih bisa dianggap linier karena pola kelengkungannya tidak membentuk kurva ekstrem (seperti huruf U atau parabola yang jelas).
+
+
+### Plot Sisaan vs Urutan
+
+```{r}
+plot(x = 1:dim(dt)[1],
+     y = model1$residuals,
+     type = 'b', 
+     ylab = "Residuals",
+     xlab = "Observation")
+```
+
+Tebaran tidak berpola → sisaan saling bebas, model pas, tetapi ada indikasi terdapat autokorelasi karena hampir menyerupai pola autokorelasi negatif
+
+### QQ plot
+
+```{r}
+plot(model1,2)
+```
+
+Amatan cenderung tidak mengikuti garis pola sehingga sisaan tidak menyebar normal
+
+## Uji Formal
+
+### Nilai harapan sisaan sama dengan nol
+
+```{r}
+t.test(model1$residuals,mu = 0,conf.level = 0.95)
+```
+
+Nilai p pada uji t sama dengan 1 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi nilai harapan sisaan sama dengan nol terpenuhi
+
+### Ragam sisaan homogen
+
+```{r}
+bptest(model1)
+```
+
+Nilai p pada uji breusch pagan sama dengan 0.0001815 yang lebih kecil dari alpha 5%, sehingga dinyatakan asumsi ragam sisaan homogen tidak terpenuhi
+
+### Sisaan saling bebas
+
+```{r}
+dwtest(model1)
+```
+
+Nilai p pada uji durbin watson sama dengan 0.2079 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi sisaan saling bebas terpenuhi
+
+
+### Normalitas Sisaan
+
+```{r}
+shapiro.test(model1$residuals)
+```
+
+Nilai p pada uji shapiro wilk sama dengan 0.00000002227 yang lebih kecil dari alpha 5%, sehingga dinyatakan asumsi normalitas sisaan terpenuhi
+
+Semua asumsi sisaan terpenuhi, tetapi model masih buruk, kemungkinan karena keberadaan amatan yang tidak biasa seperti pencilan, leverage, atau amatan berpengaruh
+
+# Pemeriksaan Amatan Tidak Biasa
+
+```{r}
+#fungsi
+ri_stud <- rstudent(model1)
+ri_stan <- rstandard(model1)
+hii_fungsi <- hatvalues(model1)
+
+#manual
+X <- model.matrix(model1)
+X_inv_xt <- X %*% solve(t(X) %*% X) %*% t(X)
+hii_manual <- diag(X_inv_xt)
+anova_model <- anova(model1)
+s <- sqrt(anova_model["Residuals", "Mean Sq"])
+ei <- model1$residuals
+ri_manual <- ei/(s*sqrt(1-hii_manual))
+
+nilai <- data.frame(ri_stud, ri_stan, ri_manual, hii_fungsi, hii_manual)
+nilai
+```
+
+## Pencilan
+
+```{r}
+for (i in 1:dim(nilai)[1]){
+  absri <- abs(nilai[,2])
+  pencilan <- which(absri > 2)
+}
+pencilan
+```
+
+Amatan ke 3, 14, 32, 53, 108, 148, 152, dan 168 terdeteksi sebagai pencilan
+
+## Leverage
+
+```{r}
+n <- dim(dt)[1]
+p <- length(model1$coefficients)
+
+for (i in 1:dim(nilai)[1]){
+  cutoff <- 2*p/n
+  titik_leverage <- which(hii_fungsi > cutoff)
+}
+titik_leverage
+```
+
+Amatan ke 3, 12, 13, 18, 27, 32, 33, 42, 50,  75,  78,  81, 108, 121, 130, dan 143  terdeteksi sebagai titik leverage
+
+
+## Amatan Berpengaruh
+
+### Jarak Cook
+
+```{r}
+di <- cooks.distance(model1)
+f <- qf(0.05,p,n-p, lower.tail = F)
+data.frame(di, di>f)
+```
+
+```{r}
+cooks_crit = f
+model_cooks <- cooks.distance(model1)
+df <- data.frame(obs = names(model_cooks),
+                 cooks = model_cooks)
+ggplot(df, aes(y = cooks, x = obs)) +
+  geom_point() +
+  geom_hline(yintercept = cooks_crit, linetype="dashed") +
+  labs(title = "Cook's Distance",
+       subtitle = "Influential Observation ",
+       x = "Observation Number",
+       y = "Cook's")
+```
+
+
+
+```{r}
+DFFITSi <- dffits(model1)
+
+amatan_berpengaruh <- vector("list", dim(nilai)[1])
+for (i in 1:dim(nilai)[1]) {
+  cutoff <- 2 * sqrt((p / n))
+  amatan_berpengaruh[[i]] <- which(abs(DFFITSi) > cutoff)
+}
+berpengaruh <- unlist(amatan_berpengaruh)
+amatan_berpengaruh <- sort(unique(berpengaruh))
+amatan_berpengaruh
+```
+
+Amatan ke 3  13  23  32  33  42  48  53  75  81  94 108 133 148, dan 168 termasuk amatan berpengaruh sehingga sangat riskan jika disisihkan. Perlu ditelusuri lebih lanjut
+
+
+
