@@ -1,0 +1,288 @@
+---
+title: "TUGAS 2 ANREG"
+author: "M. Haikal Tabrani | M0401241060"
+date: "2026-03-08"
+output:
+  rmdformats::readthedown:
+---
+
+
+# A. Deskripsi Data
+
+Metode: Saya menggunakan data sekunder hasil scraping dari Yahoo Finance yang berisi rasio keuangan berbagai emiten.
+
+## A.1. Input Data
+
+```{r}
+data<-read.csv2("C:\\Users\\a c e r\\OneDrive\\SEMESTER 4\\ANALISIS REGRESI\\DATA ANREG PRAK\\DATA USING FOR R.csv")
+```
+
+
+## A.2. Sumber Data
+
+Saya menggunakan data sekunder hasil scraping dari Yahoo Finance yang berisi rasio keuangan berbagai emiten. Data yang saya gunakan terdiri dari 170 observasi yang saya dapatkan secara acak.
+
+
+## A.3. Deskripsi Variabel
+
+1. NPM_Y: Net Profit Margin, margin laba bersih perusahaan.
+
+2. GPM_X1: Gross Profit Margin.
+
+3. OPM_X2: Operating Profit Margin.
+
+4. ROA_X5: Return on Asset.
+
+5. ROE_X6: Return on Equity.
+
+6. CurrRatio_X7: Rasio Likuiditas
+
+7. DER_X13: Rasio Solvabilitas
+
+
+## A.4. Statistika Deskriptif
+
+```{r}
+summary_data <- summary(data[, 2:8])
+print(summary_data)
+```
+
+
+## A.5. Visualisasi Deskriptif
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$NPM_Y, col="skyblue", main="Histogram NPM_Y", xlab="NPM")
+boxplot(data$NPM_Y, col="orange", main="Boxplot NPM_Y")
+```
+
+
+## A.6. Interpretasi
+
+Berdasarkan output statistik, saya melihat bahwa rata-rata NPM_Y adalah 0.1227 (12.27%). Rentang data cukup lebar dari -0.181 (perusahaan rugi) hingga 0.398 (laba tinggi). Histogram menunjukkan bahwa sebagian besar perusahaan memiliki margin laba di sisi positif, namun terdapat beberapa pencilan di sisi bawah.
+
+
+# B. Eksplorasi Data
+
+Metode: Saya menggunakan matriks korelasi dan scatter plot untuk melihat hubungan linier awal.
+
+
+## B.1. Matrix Korelasi
+
+```{r}
+library(corrplot)
+
+cor_matrix <- cor(data[,-1])
+corrplot(cor_matrix, method = "color", type = "upper")
+```
+
+
+## B.2. Scatter Plot masing-masing X 
+
+```{r}
+plot(data$GPM_X1, data$NPM_Y, main="Scatter Plot GPM vs NPM", pch=16)
+plot(data$OPM_X2, data$NPM_Y, main="Scatter Plot GPM vs NPM", pch=16)
+plot(data$ROA_X5, data$NPM_Y, main="Scatter Plot GPM vs NPM", pch=16)
+plot(data$ROE_X6, data$NPM_Y, main="Scatter Plot GPM vs NPM", pch=16)
+plot(data$CurrRatio_X7, data$NPM_Y, main="Scatter Plot GPM vs NPM", pch=16)
+plot(data$DER_X13, data$NPM_Y, main="Scatter Plot GPM vs NPM", pch=16)
+```
+
+## B.3. Interpretasi
+
+Saya mengamati bahwa GPM, OPM, ROA, dan ROE cenderung memiliki hubungan positif dengan NPM. DER kemungkinan memiliki hubungan negatif. 
+
+
+# C. Pemodelan Regresi
+
+Metode: Saya membentuk model menggunakan fungsi lm() di R.
+
+
+## C.1. Model Regresi
+
+```{r}
+model <- lm(NPM_Y ~ GPM_X1 + OPM_X2 + ROA_X5 + ROE_X6 + CurrRatio_X7 + DER_X13, data = data)
+summary(model)
+```
+
+## C.2. Persamaan Model
+
+Berdasarkan hasil estimasi, saya memperoleh model regresi sebagai berikut:
+
+$NPM^ = −0.0202 + 0.2031GPM + 0.3374OPM − 1.1806ROA + 0.6628ROE + 0.0104CurrRatio − 0.000504DER$
+
+## C.3. Interpretasi
+
+1. Intercept (-0.0202). Ketika semua variabel prediktor bernilai 0, maka nilai NPM diperkirakan sebesar -0.0202.
+
+2. GPM (0.2031). Setiap kenaikan 1 unit GPM akan meningkatkan NPM sebesar 0.2031, dengan asumsi variabel lain konstan.
+
+3. OPM (0.3374). Setiap kenaikan 1 unit OPM akan meningkatkan NPM sebesar 0.3374.
+
+4. ROA (-1.1806). Setiap kenaikan 1 unit ROA justru menurunkan NPM sebesar 1.1806.
+
+5. ROE (0.6628). Setiap kenaikan 1 unit ROE meningkatkan NPM sebesar 0.6628.
+
+6. Current Ratio (0.0104). Pengaruhnya positif tetapi SANGAT kecil HUFTY.
+
+7. DER (-0.000504). Setiap kenaikan DER menurunkan NPM, artinya semakin tinggi utang relatif, profitabilitas menurun.
+
+
+# D. Pengujian Hipotesis Parameter
+
+Metode: Saya menguji hipotesis dengan menggunakan uji t Parsial. 
+
+
+## D.1. Statistik Uji Hipotesis Parsial
+
+```{r}
+model <- lm(NPM_Y ~ GPM_X1 + OPM_X2 + ROA_X5 + ROE_X6 + CurrRatio_X7 + DER_X13, data = data)
+summary(model)$coefficients
+```
+
+
+## D.2. Uji Hipotesis Parsial NPM
+
+$H_0: \beta_1 = 0$ (Secara parsial, Gross Profit Margin tidak berpengaruh signifikan terhadap Net Profit Margin).
+
+$H_1: \beta_1 \neq 0$ (Secara parsial, Gross Profit Margin berpengaruh signifikan terhadap Net Profit Margin).
+
+
+Karena p-value = $9.256044e-11$ < alpha = $0,05$, maka tolak H0. Berarti GPM berpengaruh signifikan terhadap NPM.
+
+
+## D.3. Uji Hipotesis Parsial OPM
+
+$H_0: \beta_2 = 0$ (Secara parsial, Operating Profit Margin tidak berpengaruh signifikan terhadap Net Profit Margin).
+
+$H_1: \beta_2 \neq 0$ (Secara parsial, Operating Profit Margin berpengaruh signifikan terhadap Net Profit Margin).
+
+
+Karena p-value = $1.888247e-12$ < alpha = $0,05$, maka tolak H0. Berarti OPM berpengaruh signifikan terhadap NPM.
+
+
+## D.4. Uji Hipotesis Parsial ROA
+
+$H_0: \beta_5 = 0$ (Secara parsial, Return on Asset tidak berpengaruh signifikan terhadap Net Profit Margin).
+
+$H_1: \beta_5 \neq 0$ (Secara parsial, Return on Asset berpengaruh signifikan terhadap Net Profit Margin).
+
+
+Karena p-value = $2.191698e-08$ < alpha = $0,05$, maka tolak H0. Berarti ROA berpengaruh signifikan terhadap NPM.
+
+
+## D.5. Uji Hipotesis Parsial ROE
+
+$H_0: \beta_6 = 0$ (Secara parsial, Return on Equity tidak berpengaruh signifikan terhadap Net Profit Margin).
+
+$H_1: \beta_6 \neq 0$ (Secara parsial, Return on Equity berpengaruh signifikan terhadap Net Profit Margin).
+
+
+Karena p-value = $3.620360e-13$ < alpha = $0,05$, maka tolak H0. Berarti ROE berpengaruh signifikan terhadap NPM.
+
+
+## D.6. Uji Hipotesis Parsial CurrRatio
+
+$H_0: \beta_7 = 0$ (Secara parsial, Current Ratio tidak berpengaruh signifikan terhadap Net Profit Margin).
+
+$H_1: \beta_7 \neq 0$ (Secara parsial, Current Ratio berpengaruh signifikan terhadap Net Profit Margin).
+
+
+Karena p-value = $4.591480e-04$ < alpha = $0,05$, maka tolak H0. Berarti CurrRatio berpengaruh signifikan terhadap NPM.
+
+
+## D.7. Uji Hipotesis Parsial DER
+
+$H_0: \beta_{13} = 0$ (Secara parsial, Debt to Equity Ratio tidak berpengaruh signifikan terhadap Net Profit Margin).
+
+$H_1: \beta_{13} \neq 0$ (Secara parsial, Debt to Equity Ratio berpengaruh signifikan terhadap Net Profit Margin).
+
+
+Karena p-value = $2.635999e-04$ < alpha = $0,05$, maka tolak H0. Berarti DER berpengaruh signifikan terhadap NPM.
+
+
+## D.8. Interpretasi Keseluruhan
+
+Berdasarkan hasil yang saya peroleh, seluruh variabel prediktor memiliki p-value yang lebih kecil dari $0,05$. Oleh karena itu, saya menyimpulkan untuk menolak $H_0$ bagi semua variabel, yang berarti seluruh variabel independen dalam model ini memiliki pengaruh nyata terhadap NPM_Y.
+
+
+# E. Diagnostik Regresi
+
+Metode: Saya melakukan cek asumsi untuk memastika validitas model
+
+```{r}
+library(car)
+library(lmtest)
+```
+
+
+## E.1. Uji Normalitas Residual (Shapiro-Wilk)
+
+```{r}
+shapiro.test(residuals(model))
+```
+
+Berdasarkan Uji Shapiro-Wilk, didapatkan nilai $pValue$ sebesar $0,9626$. $pValue>alpha=0,05$, berarti residual tidak berdistribusi normal.
+
+
+## E.2. Uji Homoskedastisitas (Breusch Pagan) 
+
+```{r}
+bptest(model)
+```
+
+Berdasarkan uji Breusch-Pagag, didapatkan nilai $pValue$ sebesar $6.536e-08$. $pValue>alpha=0,05$, berarti varians residual tidak konstan.
+
+
+## E.3. Uji Independensi Residual (Uji Durbin-Watson)
+
+```{r}
+dwtest(model)
+```
+
+Berdasarkan uji Durbin-Watson, didapatkan nilai DW sebesar 1.7899, berarti tidak terjadi autokorelasi yang parah, sehingga asumsi independensi residual relatif terpenuhi.
+
+
+## E.4. Uji Multikolinearitas (VIF)
+
+```{r}
+vif(model)
+```
+
+Berdasarkan nilai VIF masing-masing variabel, nilai VIF menunjukkan angka kurang dari 10. Itu berarti tidak terdapat multikolinearitas antar variabel prediktor. 
+
+
+## E.5. Outlier, Leverage, dan Amatan Berpengaruh
+
+```{r}
+par(mfrow=c(2,2))
+plot(model)
+```
+
+Melalui plot residual vs leverage, saya melihat beberapa titik data yang memiliki jarak Cook menonjol. Selain itu, terdapat beberapa amatan berpengaruh yang secara signifikan menarik garis regresi. Data ini kemungkinan merupakan emitmen dengan rasio keuangan yang sangat ekstrem dibandingkan dengan emitmen yang lain. 
+
+
+# F. Interpretasi Hasil Diagnostik
+
+Terdapat beberapa pelanggaran asumsi sesuai dengan yang sudah saya jelaskan diatas. Data yang saya gunakan tidak memenuhi asumsi residual menyebar normal dan varian residual tidak homogen. 
+
+
+Seharusnya diperlukan transformasi data terlebih dahulu untuk menangani masalah asumsi yang tidak terpenuhi.
+
+
+# G. Kesimpulan
+
+```{r}
+summary(model)$r.squared
+summary(model)$adj.r.squared
+```
+
+Berdasarkan hasil analisis regresi linear berganda yang telah saya lakukan terhadap data emitmen dari Yahoo Finance, beberapa kesimpulan yang saya tarik adalah:
+
+1. Model regresi yang saya bentuk membungkus nilai R-Squared sebesar 0,6915746. Hal ini menunjukkan bahwa sebesar 69,15% variasi NPM dapat dijelaskan oleh variabel-variabel prediktor yang telah saya cantumkan dalam model. Sisanya sebesar 31,85% merupakan faktor-faktor di luar model.
+
+2. Berdasarkan model yang diperoleh, saya menemukan bahwa GPM dan OPM memiliki pengaruh positif yang paling konsisten terhadap laba bersih. Sebaliknya, terdapat indikasi bahwa DER memberikan kontribusi negatif kecil terhadap margin laba bersih dalam konteks data ini.
+
+3. Meskipun seluruh variabel prediktor berpengaruh signifikan secara parsial (Uji t), saya menyadari bahwa model ini masih memiliki keterbatasan karena adanya pelanggaran asumsi normalitas dan heteroskedastisitas.
+
+4. Secara keseluruhan, saya menyimpulkan bahwa NPM sangat didorong oleh efisiensi operasional internal (GPM dan OPM) serta tingkat pengembalian modal (ROE), sementara faktor struktur modal dan penilaian pasar memiliki pengaruh yang lebih kompleks dan memerlukan analisis lebih lanjut dengan metode yang mampu menangani multikolinieritas.
