@@ -1,0 +1,247 @@
+---
+title: "Handson Pertemuan 5"
+author: "M. Haikal Tabrani"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown
+---
+
+# Library
+
+```{r}
+library(readxl)
+library(GGally)
+library(corrplot)
+library(dplyr)
+library(car)
+```
+
+# Data
+
+```{r}
+dt <-read.csv2("C:\\Users\\a c e r\\OneDrive\\SEMESTER 4\\ANALISIS REGRESI\\DATA ANREG PRAK\\DATA USING FOR R.csv")
+dt
+head(dt)
+str(dt)
+summary(dt)
+```
+
+
+```{r}
+library(dplyr)
+
+dt <- dt %>% 
+  rename(
+    Y = `NPM_Y`,
+    X1 = `GPM_X1`,
+    X2 = `OPM_X2`,
+    X3 = `ROA_X5`,
+    X4 = `ROE_X6`,
+    X5 = `CurrRatio_X7`
+  )
+```
+
+```{r}
+dt<-select(dt,-Ticker)
+dt
+```
+
+
+# Eksplorasi data
+
+```{r}
+hist(dt$Y, main = "Sebaran Net Profit Margin")
+```
+
+```{r}
+boxplot(dt$Y, main = "Sebaran NPM")
+```
+
+
+```{r}
+
+library(ggplot2)
+library(corrplot)
+cor_matrix <- cor(dt, use = "complete.obs")
+
+corrplot(cor_matrix, method = "color", type = "lower",
+         col = colorRampPalette(c("red", "white", "blue"))(200),
+         addCoef.col = "black", tl.col = "black", tl.srt = 35)
+```
+
+Berdasarkan visualisasi korelogram, nilai koefisien korelasi Pearson antara variabel respon ($Y$) dengan seluruh variabel prediktor ($X_1, X_2, X_3, X_4, X_5$) menunjukkan hubungan linear positif. Seluruh nilai korelasi bernilai positif (berwarna biru), yang berarti jika variabel prediktor meningkat, maka nilai Net Profit Margin ($Y$) juga cenderung meningkat.
+
+**Korelasi Antara Variabel Respon ($Y$) dengan Variabel Prediktor**
+
+- X2 memiliki hubungan paling kuat dengan variabel respon Y (r = 0,64), diikuti oleh X1 (r = 0,61). Hal ini menunjukkan bahwa peningkatan nilai X1 dan X2 cenderung diikuti oleh peningkatan nilai Y.
+
+- Variabel X3, X4, dan X5 hanya memiliki hubungan positif yang lemah terhadap Y sehingga kontribusinya secara individual relatif lebih kecil dibandingkan X1 dan X2.
+
+
+**Korelasi Antar variabel bebas**
+
+-Sebagian besar pasangan variabel bebas memiliki korelasi rendah hingga sedang.
+
+-Pasangan X3 dan X4 memiliki korelasi yang sangat kuat (r = 0,83). Hal ini mengindikasikan bahwa kedua variabel membawa informasi yang hampir sama sehingga perlu diwaspadai adanya indikasi multikolinearitas apabila digunakan bersama dalam model regresi.
+
+- Korelasi X1 dan X2 sebesar 0,56 menunjukkan hubungan sedang, namun belum terlalu mengkhawatirkan.
+- Variabel X5 hampir tidak berkorelasi dengan variabel bebas lainnya karena nilai korelasinya mendekati nol.
+
+**IIndikasi Multikolinieritas**
+
+- X3 dan X4 memiliki korelasi sebesar 0,83, sehingga terdapat indikasi adanya multikolinearitas pada pasangan variabel tersebut.
+
+- Pasangan variabel bebas lainnya memiliki korelasi di bawah 0,80 sehingga belum menunjukkan masalah multikolinearitas yang serius.
+ 
+ 
+# Pemodelan
+
+## Tanpa Fungsi
+
+Perhitungan nilai $\hat{\beta}$ secara matriks dapat dilakukan dengan rumus berikut.
+
+$$\hat{\beta} = (X'X)^{-1} X'y$$
+
+```{r}
+# pembentukan matriks
+n <- nrow(dt)
+x0 <- rep(1,n)
+x <- data.frame(x0, dt$X1, dt$X2, dt$X3, dt$X4,
+                dt$X5)
+x <- as.matrix(x)
+y <- dt$Y
+```
+
+```{r, error=TRUE}
+beta_duga <- solve(t(x)%*%x)%*%t(x)%*%y
+beta_duga
+```
+
+Proses pendugaan parameter beta_duga tidak dapat dilakukan dan menghasilkan error: system is computationally singular.Hal ini menunjukkan bahwa matriks $X^T X$ bersifat singular (tidak memiliki invers / nilai determinannya mendekati nol). Nilai reciprocal condition number yang sangat kecil ($3.37631 \times 10^{-24}$, jauh mendekati 0) mengonfirmasi bahwa komputer tidak mampu melakukan inversi matriks secara numerik. Secara statistika, kondisi ini mengindikasikan adanya masalah multikolinieritas sempurna (hubungan linier yang sangat kuat antar variabel independen).
+
+Selang kepercayaan dan pengujian signifikansi setiap parameter dapat dilakukan dengan menghitung keragaman tiap dugaan parameter. Secara umum, nilai ragam dugaan parameter $\hat{\beta}_j$ dapat dihitung melalui rumus berikut.
+
+$$Var(\hat{\beta}_j) = \hat{\sigma}^2 C_{jj}$$
+Dengan matriks $C$ adalah matriks $(X'X)^{-1}$ 
+
+```{r, error=TRUE}
+c <- data.frame(solve(t(x)%*%x))
+```
+Matriks $X^T X$ bersifat singular (tidak memiliki invers / nilai determinannya mendekati nol). Nilai reciprocal condition number yang sangat kecil ($3.37631 \times 10^{-24}$, jauh mendekati 0) mengonfirmasi bahwa komputer tidak mampu melakukan inversi matriks secara numerik. Secara statistika, kondisi ini mengindikasikan adanya masalah multikolinieritas sempurna (hubungan linier yang sangat kuat antar variabel independen).
+
+Unsur diagonal dari matriks $C$ dapat digunakan untuk menghitung nilai galat baku dari setiap dugaan parameter. Galat baku ini dapat digunakan untuk menghitung selang kepercayaan dari dugaan yang dihasilkan.
+
+$$SE(\hat{\beta}_j) = \sqrt{Var(\hat{\beta}_j)} = \sqrt{\sigma^2 C_{jj}} = \hat{\sigma}\sqrt{c_{ii}}$$
+
+Misal ingin dihitung selang kepercayaan dari dugaan parameter $\beta_2$, maka
+
+```{r, error=TRUE}
+y_hat <- x %*% beta_duga
+residuals <- y - y_hat
+n <- nrow(x)
+p <- ncol(x)
+KTG <- sum(residuals^2) / (n - p) 
+
+c22 <- c[2,2]
+
+(se.b2 <- sqrt(KTG*c22))
+```
+```{r, error=TRUE}
+alfa <- 0.05
+
+#Batas Bawah beta2
+(bb.b2 <- beta_duga[3,1] - abs(qt(alfa/2, df=n-p))*se.b2)
+```
+
+```{r, error=TRUE}
+#Batas Atas beta2
+(ba.b2 <- beta_duga[3,1] + abs(qt(alfa/2, df=n-p))*se.b2)
+```
+
+Matriks beta_duga tidak dapat dihasilkan sehingga selang kepercayaan dari dugaan parameter $\beta_2$ juga tak dapat dicari.
+
+# Dengan Fungsi
+
+```{r}
+model1 <- lm(formula = Y ~ ., data = dt)
+summary(model1)
+```
+
+# Pemeriksaan Multikoliniearitas
+
+```{r}
+library(car)
+vif(model1)
+```
+Tidak ada multikolinearitas karena seluruh nilai VIF dibawah 10.
+
+
+```{r}
+summary(model1)
+```
+
+
+Persamaan yang terbentuk adalah
+$$\hat{Y}=-0.048196+0.179346X_1+0.361845X_2-1.074233X_3+ 0.601387+0.015255X_5$$
+
+
+# Uji Hipotesis Kesamaan Parameter Regresi
+
+Dari pemodelan sebelumnya, diperoleh persamaan regresi
+
+$$\hat{Y}=-0.048196+0.179346X_1+0.361845X_2-1.074233X_3+ 0.601387+0.015255X_5$$
+
+
+Hipotesis yang diuji adalah
+
+$$H_0: β2=β4$$
+$$H_1: β2≠β4$$
+
+Karena peubah $X_2$ dan $X_4$ tidak signifikan maka dapat diasumsikan nol sehingga model dapat disederhanakan menjadi:
+
+$$PPM=β_0+β_2X_2+β_4X_4+ε$$
+Jika $H_0$ benar $(β_2=β_4=β_1')$, model bisa ditulis ulang sebagai
+
+$$Y=β_0+β_1' (X_2+X_4)+ε$$
+
+```{r}
+# Buat peubah baru
+dt$X_new <- dt$X2 + dt$X4
+
+# Model penuh (Full Model)
+model_full <- lm(Y ~ X2 + X4, data = dt)
+
+# Model terbatas (Restricted Model)
+model_restricted <- lm(Y ~ X_new, data = dt)
+
+# Bandingkan dengan Uji F
+anova(model_restricted, model_full)
+```
+
+
+
+```{r}
+model_all <- lm(Y ~ X1+X2+X3+X4+X5, data = dt)
+summary(model_all)
+```
+
+```{r}
+model_signif <- lm(Y ~ X2+X4, data = dt)
+summary(model_signif)
+```
+
+```{r}
+perbandingan <- data.frame(
+  Model = c("Peubah Penuh", "Dua Peubah"),
+  Adjusted_R2 = as.numeric(c(summary(model_all)$adj.r.squared, summary(model_signif)$adj.r.squared)),
+  AIC = as.numeric(c(AIC(model_all), AIC(model_signif))),
+  BIC = as.numeric(c(BIC(model_all), BIC(model_signif)))
+)
+perbandingan
+```
+
+Berdasarkan indikator Adjusted R square, AIC, dan BIC maka model dengan semua peubah dipilih sebagai model yang terbaik. Persamaan yang terbentuk adalah sebagai berikut
+
+$$\hat{Y}=-0.048196+0.179346X_1+0.361845X_2-1.074233X_3+ 0.601387+0.015255X_5$$
+Interpretasi:\
+Berdasarkan tanda koefisien regresi, variabel $X_1$, $X_2$, $X_4$, dan $X_5$ memiliki pengaruh positif terhadap variabel respon $Y$, sedangkan $X_3$ memiliki pengaruh negatif. Di antara seluruh prediktor, $X_3$ memiliki pengaruh paling besar secara absolut dengan koefisien sebesar $-1,074233$, sehingga perubahan pada variabel ini diperkirakan memberikan dampak terbesar terhadap nilai prediksi $Y$. Sementara itu, $X_5$ memiliki pengaruh yang paling kecil terhadap variabel respon karena koefisien regresinya hanya sebesar $0,015255$.
