@@ -1,0 +1,50 @@
+---
+title: "HANDSON"
+author: "M. Haikal Tabrani"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(readxl)
+df<-read_xlsx("C:\\Users\\a c e r\\Downloads\\DATA_REGRESI_CLEANEDED (1).xlsx")
+df
+```
+
+```{r}
+summary(df)
+```
+
+```{r}
+colnames(df) <- c("Ticker", "Y", paste0("X", 1:16))
+head(df)
+```
+
+```{r}
+plot(df$X1, df$Y,
+     main = "X1 VS Y",
+     xlab = "GPM",
+     ylab = "NPM")
+```
+```{r}
+n <- nrow(data)
+x <- df$X1
+y <- df$Y
+```
+
+```{r}
+b1 <- (sum(x*y)-sum(x)*sum(y)/n)/(sum(x^2)-(sum(x)^2/n))
+b0 <- mean(y)-b1*mean(x)
+
+cat("Koefisien b0:", b0, "\n")  
+cat("Koefisien b1:", b1, "\n")
+```
+```{r}
+r <- (sum(x*y)-sum(x)*sum(y)/n)/
+sqrt((sum(x^2)-(sum(x)^2/n))*(sum(y^2)-(sum(y)^2/n)))
+Koef_det <- r^2
+Koef_det
+```
+
