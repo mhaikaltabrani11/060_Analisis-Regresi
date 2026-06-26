@@ -1,0 +1,171 @@
+---
+title: "Handson Pertemuan 8"
+author: "M. Haikal Tabrani"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown
+---
+
+# Package
+
+```{r}
+library(readxl)
+library(car) # untuk multikolinearitas
+library(olsrr) # untuk best subset
+library(MASS) # untuk forward, backward, dan stepwise
+library(glmnet) # untuk ridge dan lasso
+library(dplyr)
+```
+
+# Uji F Parsial dan Sekuensial
+
+```{r}
+data(mtcars)
+head(mtcars)
+```
+Kita Pakai : Y = mpg, X1 = wt, X2 = hp, X3 = disp
+
+## F Sekuensial
+
+```{r}
+# Model 1: tanpa prediktor
+m1 <- lm(mpg ~ 1, data = mtcars)
+
+# Model 2: tambah wt
+m2 <- lm(mpg ~ wt, data = mtcars)
+
+# Model 3: tambah hp
+m3 <- lm(mpg ~ wt + hp, data = mtcars)
+
+# Model 4 : tambah disp
+m4 <- lm(mpg ~ wt + hp + disp, data = mtcars)
+
+```
+
+
+```{r}
+anova(m1, m2, m3, m4)
+```
+Variabel wt berpengaruh signifikan terhadap mpg (p < 0.001).
+Setelah memasukkan wt, variabel hp masih memberikan tambahan pengaruh yang signifikan (p ≈ 0.0018).
+Namun, setelah wt dan hp ada dalam model, variabel disp tidak memberikan pengaruh tambahan yang signifikan (p ≈ 0.93).
+
+Kesimpulan: Model yang cukup baik adalah mpg∼wt+hp, karena penambahan disp tidak meningkatkan kemampuan model secara signifikan.
+
+## F Parsial
+
+Akan diuji apakah hp signifikan setelah semua variabel lain dikontrol
+```{r}
+# full model
+full <- lm(mpg ~ wt + hp + disp, data = mtcars)
+
+# reduced (tanpa hp)
+red <- lm(mpg ~ wt + disp, data = mtcars)
+
+anova(red, full)
+```
+Variabel hp berpengaruh signifikan terhadap mpg setelah mengontrol wt dan disp (p < 0.05).
+
+
+# Data
+
+```{r}
+dt <-read.csv2("C:\\Users\\a c e r\\OneDrive\\SEMESTER 4\\ANALISIS REGRESI\\DATA ANREG PRAK\\DATA USING FOR R.csv")
+dt
+```
+
+```{r}
+data<-select(dt,-Ticker)
+data
+```
+
+# Pemodelan Awal
+
+```{r}
+model1 <- lm(NPM_Y ~ ., data=data)
+summary(model1)
+```
+
+Persamaan yang terbentuk dari seluruh peubah tersebut menghasilkan nilai koefisien determinasi sebesar 68,02% dengan seluruh parameter adalah signifikan. Selanjutnya akan diperiksa ada tidaknya multikolinearitas pada model
+
+# Pemeriksaan Multikolinieritas
+
+```{r}
+vif(model1)
+```
+
+Hasil pemeriksaan nilai VIF menunjukkan semua peubah penjelas memiliki VIF<10 sehingga tidak ada multikolinearitas.
+
+# Penyeleksian Peubah
+
+## Best Subset
+
+```{r}
+bs <- ols_step_best_subset(model1)
+bs
+```
+
+## Backward, Forward, dan Stepwise
+
+```{r}
+null<-lm(NPM_Y ~ 1, data=data) # 1 here means the intercept 
+full<-lm(NPM_Y ~ ., data=data)
+ 
+step(full, scope=list(lower=null, upper=full),data=data, direction='backward', trace=0)
+```
+
+```{r}
+step(null, scope=list(lower=null, upper=full),data=data, direction='forward', trace=0)
+```
+
+```{r}
+step(null, scope=list(lower=null, upper=full),data=data, direction='both', trace=0)
+```
+
+Hasil penyeleksian melalui best subset, backward, forward, dan stepwise menghasilkan model yang sama, yaitu dengan 6 peubah penjelas (OPM, GPM, ROA, ROE, CurrRatio, dan DERR)
+
+```{r}
+model2 <- lm(NPM_Y ~ OPM_X2 + CurrRatio_X7 + GPM_X1 + ROE_X6 + 
+    ROA_X5 + DER_X13, data=data)
+summary(model2)
+```
+
+```{r}
+AIC(model2); BIC(model2)
+```
+
+```{r}
+summary(model1)
+```
+
+Diperoleh persamaan regresi:
+
+$$\hat{NPM} = -0.0201755+0.2030813GPM+0.3374468OPM-1.1805581ROA+0.6628448ROE+0.0104320CurrRatio-0.0005041DERR$$
+
+
+# Shrinkage Methods
+
+## Ridge
+
+```{r}
+x <- as.matrix(data[, -1])
+y <- data$NPM
+
+rid <- cv.glmnet(x, y, alpha = 0, nfolds = 5)  # Ridge regression
+# secara default, nfolds = 10 sehingga akan buruk ketika n<30
+rid
+coef(rid, s = "lambda.min")
+```
+
+
+
+## Lasso
+
+```{r}
+lass <- cv.glmnet(x, y, alpha=1, nfolds = 5)
+lass
+coef(lass,s="lambda.min")
+```
+
+Lasso menghasilkan pemodelan regresi dengan penyusutan/penyeleksian peubah yang memiliki koefisien yang sangat mendekati atau bahkan tepat nol
+
